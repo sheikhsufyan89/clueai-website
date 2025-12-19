@@ -10,8 +10,11 @@ const HeroSection = () => {
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth * 0.5;
+    canvas.width = window.innerWidth * 0.85;
     canvas.height = window.innerHeight;
+
+    const userImage = new Image();
+    userImage.src = '/user.png';
 
     // Create network nodes
     const nodes = [];
@@ -23,7 +26,7 @@ const HeroSection = () => {
         y: Math.random() * canvas.height,
         vx: (Math.random() - 0.5) * 0.5,
         vy: (Math.random() - 0.5) * 0.5,
-        radius: Math.random() * 3 + 2,
+        radius: Math.random() * 5 + 4,
         connections: []
       });
     }
@@ -74,24 +77,58 @@ const HeroSection = () => {
         node.x += node.vx;
         node.y += node.vy;
 
-        // Bounce off edges
-        if (node.x < 0 || node.x > canvas.width) node.vx *= -1;
-        if (node.y < 0 || node.y > canvas.height) node.vy *= -1;
+        const visualRadius = node.radius * 6;
+
+        // Bounce off edges with visual radius
+        if (node.x - visualRadius < 0 || node.x + visualRadius > canvas.width) {
+          node.vx *= -1;
+          // Clamp position to prevent sticking
+          if (node.x - visualRadius < 0) node.x = visualRadius;
+          if (node.x + visualRadius > canvas.width) node.x = canvas.width - visualRadius;
+        }
+
+        if (node.y - visualRadius < 0 || node.y + visualRadius > canvas.height) {
+          node.vy *= -1;
+          // Clamp position to prevent sticking
+          if (node.y - visualRadius < 0) node.y = visualRadius;
+          if (node.y + visualRadius > canvas.height) node.y = canvas.height - visualRadius;
+        }
 
         // Draw node glow
-        const gradient = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, node.radius * 3);
+        const gradient = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, node.radius * 8);
         gradient.addColorStop(0, 'rgba(160, 160, 160, 0.3)');
         gradient.addColorStop(1, 'rgba(160, 160, 160, 0)');
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius * 3, 0, Math.PI * 2);
+        ctx.arc(node.x, node.y, node.radius * 8, 0, Math.PI * 2);
         ctx.fill();
 
         // Draw node
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-        ctx.fill();
+        if (userImage.complete) {
+          const outerRadius = node.radius * 6;
+          const imageRadius = outerRadius - 4; // Padding between ring and image
+
+          // Draw outer ring
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, outerRadius, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Draw image
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, imageRadius, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(userImage, node.x - imageRadius, node.y - imageRadius, imageRadius * 2, imageRadius * 2);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
       });
 
       // Draw and update particles
@@ -114,7 +151,7 @@ const HeroSection = () => {
     animate();
 
     const handleResize = () => {
-      canvas.width = window.innerWidth * 0.5;
+      canvas.width = window.innerWidth * 0.85;
       canvas.height = window.innerHeight;
     };
 
@@ -123,24 +160,41 @@ const HeroSection = () => {
   }, []);
 
   return (
-    <section className="relative h-screen bg-clue-black overflow-hidden">
+    <section className="relative h-screen bg-clue-black overflow-hidden font-inter">
       {/* Logo */}
+      <div className="absolute top-0 left-0 w-full z-20 pointer-events-none">
+        <div className="max-w-[1600px] mx-auto px-3 md:px-8 pt-8">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="pointer-events-auto inline-block"
+          >
+            <h1 className="text-xl md:text-2xl font-bold text-white tracking-wider text-shadow font-michroma">CLUE AI</h1>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Right side - Network Visualization */}
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="absolute top-8 left-8 z-20"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1, delay: 0.5 }}
+        className="absolute top-0 right-0 h-full w-[85vw] translate-x-[20%] hidden md:block z-0"
       >
-        <h1 className="text-xl md:text-2xl font-bold text-white tracking-wider text-shadow">CLUE AI</h1>
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full"
+        />
       </motion.div>
 
-      <div className="relative h-full flex flex-col md:flex-row items-center justify-center md:justify-between px-6 md:px-16 max-w-[1600px] mx-auto pt-20 md:pt-0">
+      <div className="relative h-full flex flex-col md:flex-row items-center md:items-center justify-start px-3 md:px-8 max-w-[1600px] mx-auto pt-20 md:pt-0 pointer-events-none">
         {/* Left side - Text */}
         <motion.div
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 1, delay: 0.2 }}
-          className="z-10 max-w-2xl w-full md:w-auto"
+          className="z-10 max-w-2xl w-full md:w-auto pointer-events-auto"
         >
           <h2 className="text-4xl md:text-7xl lg:text-8xl font-bold leading-tight text-shadow-lg text-center md:text-left">
             <motion.span
@@ -168,19 +222,6 @@ const HeroSection = () => {
               Better Marketing
             </motion.span>
           </h2>
-        </motion.div>
-
-        {/* Right side - Network Visualization */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1, delay: 0.5 }}
-          className="relative hidden md:block"
-        >
-          <canvas
-            ref={canvasRef}
-            className="relative z-10 w-full max-w-[300px] md:max-w-none"
-          />
         </motion.div>
       </div>
 
